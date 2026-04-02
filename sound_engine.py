@@ -64,7 +64,14 @@ class PianoEngine:
 
         self._synth = None
         self._sfid = None
-        sf2_path = "Piano.sf3"
+        import sys
+        import os
+        if getattr(sys, 'frozen', False):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            
+        sf2_path = os.path.join(base_path, "Piano.sf3")
         try:
             import fluidsynth
             import os
