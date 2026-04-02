@@ -127,22 +127,22 @@ class KeyboardPiano:
                 )[0]
                 
                 if phrase_type == "bebop":
-                    # Melodic run, slowed down to a more relaxed jazz groove
-                    num_notes = random.randint(3, 8)
+                    # Melodic run, slowed down to a very relaxed jazz groove
+                    num_notes = random.randint(2, 6)
                     for _ in range(num_notes):
                         if time.monotonic() - self._last_press < 2.0: break
-                        step = random.choice([-2, -1, 1, 2, 3])
+                        step = random.choice([-2, -1, 1, 2])
                         self._jazz_idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx + step))
                         note = PENTATONIC_SCALE[self._jazz_idx]
-                        vol = random.uniform(0.6, 1.1)
+                        vol = random.uniform(0.5, 0.9)
                         self._play_queue.put(([note], 1.2, vol, []))
                         
-                        # Slower, more relaxed rhythm
-                        time.sleep(random.choice([0.15, 0.2, 0.25, 0.35]))
+                        # Very relaxed rhythm
+                        time.sleep(random.choice([0.25, 0.35, 0.5, 0.6]))
                         
                 elif phrase_type == "chords":
-                    # 1 to 3 syncopated block chords
-                    num_chords = random.randint(1, 3)
+                    # 1 to 2 syncopated block chords (sparse)
+                    num_chords = random.randint(1, 2)
                     for _ in range(num_chords):
                         if time.monotonic() - self._last_press < 2.0: break
                         root = PENTATONIC_SCALE[self._jazz_idx]
@@ -151,22 +151,25 @@ class KeyboardPiano:
                         else:
                             chord = [root-12, root-8, root-2, root+1, root+3]
                         
-                        self._play_queue.put((chord, 1.5, random.uniform(1.0, 1.4), []))
-                        time.sleep(random.choice([0.4, 0.5, 0.6]))
-                    time.sleep(0.4)
+                        self._play_queue.put((chord, 2.0, random.uniform(0.9, 1.2), []))
+                        time.sleep(random.choice([0.8, 1.2]))
                     
                 elif phrase_type == "burst":
-                    # Quick cascading cascade but less frantic
+                    # Slowed down cascade
                     if time.monotonic() - self._last_press < 2.0: continue
-                    for i in range(4):
+                    for i in range(3):
                         idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx - i))
-                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 1.0, []))
-                        time.sleep(0.08)
-                    time.sleep(0.6)
+                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 0.9, []))
+                        time.sleep(0.15)
                     
                 elif phrase_type == "pause":
-                    # Give the solo some breathing room
-                    time.sleep(random.uniform(0.4, 1.0))
+                    # Intentional long silence
+                    time.sleep(random.uniform(1.5, 3.0))
+
+                # Add a mandatory breather interval after EVERY phrase!
+                # This ensures the pianist doesn't endlessly spam and "steal the show"
+                if time.monotonic() - self._last_press >= 2.0:
+                    time.sleep(random.uniform(1.5, 3.5))
             else:
                 time.sleep(0.1)
 
