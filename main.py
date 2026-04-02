@@ -127,43 +127,42 @@ class KeyboardPiano:
                 )[0]
                 
                 if phrase_type == "bebop":
-                    # Fast melodic run of 4-12 notes
-                    num_notes = random.randint(4, 12)
+                    # Melodic run, slowed down to a more relaxed jazz groove
+                    num_notes = random.randint(3, 8)
                     for _ in range(num_notes):
                         if time.monotonic() - self._last_press < 2.0: break
                         step = random.choice([-2, -1, 1, 2, 3])
                         self._jazz_idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx + step))
                         note = PENTATONIC_SCALE[self._jazz_idx]
-                        vol = random.uniform(0.7, 1.3)
+                        vol = random.uniform(0.6, 1.1)
                         self._play_queue.put(([note], 1.2, vol, []))
                         
-                        # Variable fast rhythm (creates "urgency" and swing)
-                        time.sleep(random.choice([0.08, 0.12, 0.15, 0.25]))
+                        # Slower, more relaxed rhythm
+                        time.sleep(random.choice([0.15, 0.2, 0.25, 0.35]))
                         
                 elif phrase_type == "chords":
-                    # 1 to 4 dense syncopated block chords
-                    num_chords = random.randint(1, 4)
+                    # 1 to 3 syncopated block chords
+                    num_chords = random.randint(1, 3)
                     for _ in range(num_chords):
                         if time.monotonic() - self._last_press < 2.0: break
                         root = PENTATONIC_SCALE[self._jazz_idx]
-                        # Jazz voicing (e.g. Min11 or Dom#9)
                         if random.random() < 0.5:
                             chord = [root-12, root-5, root-2, root+2, root+5]
                         else:
                             chord = [root-12, root-8, root-2, root+1, root+3]
                         
-                        self._play_queue.put((chord, 1.5, random.uniform(1.2, 1.7), []))
-                        time.sleep(random.choice([0.2, 0.3, 0.45]))
-                    time.sleep(0.3)
+                        self._play_queue.put((chord, 1.5, random.uniform(1.0, 1.4), []))
+                        time.sleep(random.choice([0.4, 0.5, 0.6]))
+                    time.sleep(0.4)
                     
                 elif phrase_type == "burst":
-                    # Ultra-fast cascading notes
+                    # Quick cascading cascade but less frantic
                     if time.monotonic() - self._last_press < 2.0: continue
-                    for i in range(5):
+                    for i in range(4):
                         idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx - i))
-                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 1.2, []))
-                        time.sleep(0.04)
-                    time.sleep(0.5)
+                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 1.0, []))
+                        time.sleep(0.08)
+                    time.sleep(0.6)
                     
                 elif phrase_type == "pause":
                     # Give the solo some breathing room

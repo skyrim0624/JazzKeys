@@ -71,7 +71,7 @@ class PianoEngine:
             # Note: Do not load piano soundfont for typewriter mode
             if os.path.exists(sf2_path) and mode != "typewriter":
                 self._synth = fluidsynth.Synth()
-                self._synth.setting("synth.gain", 0.7) # Boost default fluidsynth volume (default is 0.2)
+                self._synth.setting("synth.gain", 0.5) # Reduced slightly from 0.7 to avoid being too noisy
                 self._synth.start(driver="coreaudio")
                 self._sfid = self._synth.sfload(sf2_path)
                 self._synth.program_select(0, self._sfid, 0, 0)
