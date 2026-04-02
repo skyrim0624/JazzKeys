@@ -114,72 +114,107 @@ class KeyboardPiano:
                 pass
 
     def _vamp_loop(self):
-        """Background tracker that injects walking bass/chords when the user is thinking."""
+        """Background tracker that plays autonomous bebop solos when the user is thinking."""
         while not self._stop_event.is_set():
             idle_time = time.monotonic() - self._last_press
             
-            # Start vamping if user hasn't typed for 2.5 seconds
-            if idle_time > 2.5:
-                # We are in Vamping Mode. Let's look at the last note played to define context.
-                root = self._last_note_played % 12 + 36 # shift to 3rd octave for bass
+            # Start intense vamping if user hasn't typed for 2 seconds
+            if idle_time > 2.0:
+                # Decide next phrase type
+                phrase_type = random.choices(
+                    ["bebop", "chords", "burst", "pause"],
+                    weights=[50, 30, 15, 5]
+                )[0]
                 
-                vamp_type = random.random()
-                if vamp_type < 0.6:
-                    # Walking Bass note
-                    bass_note = root + random.choice([0, 3, 5, 7, 10]) # minor pent intervals
-                    self._play_queue.put(([bass_note], 1.2, 0.4, []))
-                    time.sleep(0.8) # Swing bass interval
-                else:
-                    # Very gentle background chord
-                    chord = [root+12, root+15, root+19] if random.random() < 0.5 else [root+15, root+19, root+22]
-                    self._play_queue.put((chord, 2.5, 0.15, []))
-                    time.sleep(1.5) # Let the chord ring out
+                if phrase_type == "bebop":
+                    # Fast melodic run of 4-12 notes
+                    num_notes = random.randint(4, 12)
+                    for _ in range(num_notes):
+                        if time.monotonic() - self._last_press < 2.0: break
+                        step = random.choice([-2, -1, 1, 2, 3])
+                        self._jazz_idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx + step))
+                        note = PENTATONIC_SCALE[self._jazz_idx]
+                        vol = random.uniform(0.7, 1.3)
+                        self._play_queue.put(([note], 1.2, vol, []))
+                        
+                        # Variable fast rhythm (creates "urgency" and swing)
+                        time.sleep(random.choice([0.08, 0.12, 0.15, 0.25]))
+                        
+                elif phrase_type == "chords":
+                    # 1 to 4 dense syncopated block chords
+                    num_chords = random.randint(1, 4)
+                    for _ in range(num_chords):
+                        if time.monotonic() - self._last_press < 2.0: break
+                        root = PENTATONIC_SCALE[self._jazz_idx]
+                        # Jazz voicing (e.g. Min11 or Dom#9)
+                        if random.random() < 0.5:
+                            chord = [root-12, root-5, root-2, root+2, root+5]
+                        else:
+                            chord = [root-12, root-8, root-2, root+1, root+3]
+                        
+                        self._play_queue.put((chord, 1.5, random.uniform(1.2, 1.7), []))
+                        time.sleep(random.choice([0.2, 0.3, 0.45]))
+                    time.sleep(0.3)
+                    
+                elif phrase_type == "burst":
+                    # Ultra-fast cascading notes
+                    if time.monotonic() - self._last_press < 2.0: continue
+                    for i in range(5):
+                        idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx - i))
+                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 1.2, []))
+                        time.sleep(0.04)
+                    time.sleep(0.5)
+                    
+                elif phrase_type == "pause":
+                    # Give the solo some breathing room
+                    time.sleep(random.uniform(0.4, 1.0))
             else:
-                time.sleep(0.3)
+                time.sleep(0.1)
 
     def _advance(self, key_type="char"):
         # Semantic mapping for special keys
         if key_type != "char":
             if key_type == "modifier":
-                # Currently disabled per user request (was too noisy)
+                # Super strong jazzy "punch" for Shift/Cmd/Alt
+                root = self._last_note_played
+                shift = random.choice([-12, -24])
+                # The classic "Hendrix" / Altered dominant punch
+                chord = [root+shift, root+4+shift, root+10+shift, root+15+shift, root+17+shift]
+                self._play_queue.put((chord, 1.0, 1.8, [])) # Very loud
+                self._last_press = time.monotonic()
                 return
             elif key_type == "enter":
-                # Resolution chord (Minor/Major 7th) with random octave inversions
+                # Big resolution chord (Massive Minor 9 or Major 9/13 inversion)
                 root = self._last_note_played
-                shift = random.choice([0, 12]) # Occasionally jump an octave
+                shift = random.choice([-12, -24]) 
                 if random.random() < 0.5:
-                    chord = [root-12+shift, root-8+shift, root-5+shift, root-1+shift] # Maj7
+                    chord = [root+shift, root+4+shift, root+7+shift, root+11+shift, root+14+shift, root+21+shift] # Maj 13
                 else:
-                    chord = [root-12+shift, root-9+shift, root-5+shift, root-2+shift] # Min7
+                    chord = [root+shift, root+3+shift, root+7+shift, root+10+shift, root+14+shift, root+17+shift] # Min 11
                 
-                self._play_queue.put((chord, 2.5, 0.55, []))
+                self._play_queue.put((chord, 3.5, 2.0, [])) # Deep ringing completion
                 self._last_press = time.monotonic()
                 return
             elif key_type == "backspace":
-                # Tension / Diminished/Dominant mapping with randomized dropping inversions
-                # so that holding backspace sounds like a chaotic falling cascade
+                # Aggressive diminished / fully altered cluster
                 root = self._last_note_played
-                drop = random.choice([0, 2, 3, 5, 6]) # Random offsets to avoid repetitive noise
-                r = root - drop
+                shift = random.choice([-12, -24])
+                drop = random.choice([0, 3, 6, 9]) # Diminished cycle offsets
+                r = root + shift - drop
                 
-                # Alternate between two tense chord shapes
-                if random.random() < 0.5:
-                    chord = [r-10, r-6, r-3, r] 
-                else:
-                    chord = [r-10, r-7, r-4, r]
-                    
-                self._play_queue.put((chord, 1.2, 0.4, []))
+                chord = [r, r+3, r+6, r+9, r+14] # Pure tension cascade
+                self._play_queue.put((chord, 1.5, 1.7, []))
                 self._last_press = time.monotonic()
                 return
             elif key_type == "space":
-                # Light comping / jazz chord layout (Maj9 / Min9 open voicings)
+                # Broad, loud jazz comping
                 root = self._last_note_played
                 shift = random.choice([-12, 0])
                 if random.random() < 0.5:
-                    chord = [root-12+shift, root-5+shift, root-2+shift, root+2+shift] # Min9
+                    chord = [root+shift, root+7+shift, root+10+shift, root+14+shift] # Min9
                 else:
-                    chord = [root-12+shift, root-4+shift, root-1+shift, root+2+shift] # Maj9
-                self._play_queue.put((chord, 1.8, 0.45, []))
+                    chord = [root+shift, root+7+shift, root+11+shift, root+14+shift] # Maj9
+                self._play_queue.put((chord, 1.8, 1.5, []))
                 self._last_press = time.monotonic()
                 return
             return
