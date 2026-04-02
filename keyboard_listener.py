@@ -51,11 +51,7 @@ class KeyboardListener:
         self._listener.join()
 
     def _handle(self, key):
-        if key == keyboard.Key.esc:
-            self._on_quit()
-            return False
-
-        if key in _IGNORED_KEYS:
+        if key in _IGNORED_KEYS or key == keyboard.Key.esc:
             return
 
         key_type = "char"
