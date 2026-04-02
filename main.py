@@ -120,56 +120,34 @@ class KeyboardPiano:
             
             # Start intense vamping if user hasn't typed for 2 seconds
             if idle_time > 2.0:
-                # Decide next phrase type
-                phrase_type = random.choices(
-                    ["bebop", "chords", "burst", "pause"],
-                    weights=[50, 30, 15, 5]
-                )[0]
+                # Decide ambient background style (very slow, very sparse)
+                phrase_type = random.choices(["bass", "slow_chord"], weights=[60, 40])[0]
                 
-                if phrase_type == "bebop":
-                    # Melodic run, slowed down to a very relaxed jazz groove
-                    num_notes = random.randint(2, 6)
-                    for _ in range(num_notes):
-                        if time.monotonic() - self._last_press < 2.0: break
-                        step = random.choice([-2, -1, 1, 2])
-                        self._jazz_idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx + step))
-                        note = PENTATONIC_SCALE[self._jazz_idx]
-                        vol = random.uniform(0.5, 0.9)
-                        self._play_queue.put(([note], 1.2, vol, []))
-                        
-                        # Very relaxed rhythm
-                        time.sleep(random.choice([0.25, 0.35, 0.5, 0.6]))
-                        
-                elif phrase_type == "chords":
-                    # 1 to 2 syncopated block chords (sparse)
-                    num_chords = random.randint(1, 2)
-                    for _ in range(num_chords):
-                        if time.monotonic() - self._last_press < 2.0: break
-                        root = PENTATONIC_SCALE[self._jazz_idx]
-                        if random.random() < 0.5:
-                            chord = [root-12, root-5, root-2, root+2, root+5]
-                        else:
-                            chord = [root-12, root-8, root-2, root+1, root+3]
-                        
-                        self._play_queue.put((chord, 2.0, random.uniform(0.9, 1.2), []))
-                        time.sleep(random.choice([0.8, 1.2]))
+                if phrase_type == "bass":
+                    # A single, very deep, resonant bass note
+                    root = self._last_note_played % 12 + 36 # Deep 3rd octave
+                    bass_note = root + random.choice([0, 3, 5, 7])
+                    self._play_queue.put(([bass_note], 3.0, 0.4, []))
                     
-                elif phrase_type == "burst":
-                    # Slowed down cascade
-                    if time.monotonic() - self._last_press < 2.0: continue
-                    for i in range(3):
-                        idx = max(0, min(len(PENTATONIC_SCALE)-1, self._jazz_idx - i))
-                        self._play_queue.put(([PENTATONIC_SCALE[idx]], 1.5, 0.9, []))
-                        time.sleep(0.15)
+                    # Huge gap between bass notes
+                    time.sleep(random.uniform(2.5, 4.5))
+                        
+                elif phrase_type == "slow_chord":
+                    # One single, extremely soft and wide jazz chord
+                    root = self._last_note_played % 12 + 48 
+                    if random.random() < 0.5:
+                        chord = [root, root+7, root+10, root+14] # Min9ish open
+                    else:
+                        chord = [root, root+7, root+11, root+14] # Maj9ish open
                     
-                elif phrase_type == "pause":
-                    # Intentional long silence
-                    time.sleep(random.uniform(1.5, 3.0))
+                    self._play_queue.put((chord, 4.0, 0.35, []))
+                    
+                    # Huge gap for the chord to ring out completely
+                    time.sleep(random.uniform(4.0, 7.0))
 
-                # Add a mandatory breather interval after EVERY phrase!
-                # This ensures the pianist doesn't endlessly spam and "steal the show"
+                # Extra mandatory ambient pause so it never feels like a continuous song
                 if time.monotonic() - self._last_press >= 2.0:
-                    time.sleep(random.uniform(1.5, 3.5))
+                    time.sleep(random.uniform(1.0, 3.0))
             else:
                 time.sleep(0.1)
 
