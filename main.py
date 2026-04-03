@@ -24,6 +24,22 @@ from songs import ALL_SONGS
 
 PENTATONIC_SCALE = [48, 51, 53, 55, 58, 60, 63, 65, 67, 70, 72, 75, 77, 79, 82, 84]
 
+# Diatonic jazz chord intervals for each scale degree in C Dorian
+# Each root in the pentatonic gets the correct chord quality
+JAZZ_CHORDS = {
+    0:  {'full': [0, 3, 7, 10, 14], 'shell': [0, 10, 14], 'rootless': [3, 7, 10, 14]},   # Cm9
+    3:  {'full': [0, 4, 7, 11, 14], 'shell': [0, 11, 14], 'rootless': [4, 7, 11, 14]},   # Ebmaj9
+    5:  {'full': [0, 4, 7, 10, 14], 'shell': [0, 10, 14], 'rootless': [4, 7, 10, 14]},   # F9
+    7:  {'full': [0, 3, 7, 10, 14], 'shell': [0, 10, 14], 'rootless': [3, 7, 10, 14]},   # Gm9
+    10: {'full': [0, 4, 7, 11, 14], 'shell': [0, 11, 14], 'rootless': [4, 7, 11, 14]},   # Bbmaj9
+}
+
+def _get_jazz_voicing(root_midi, voicing_type='full'):
+    """Get a diatonic jazz chord voicing for a given root note."""
+    degree = root_midi % 12
+    intervals = JAZZ_CHORDS.get(degree, JAZZ_CHORDS[0])[voicing_type]
+    return [root_midi + i for i in intervals]
+
 class KeyboardPiano:
     """Main application — wires together the song, engine, and listener."""
 
@@ -172,46 +188,33 @@ class KeyboardPiano:
             self._last_note_played = PENTATONIC_SCALE[self._jazz_idx]
             
             if key_type == "modifier":
-                # Super strong jazzy "punch" for Shift/Cmd/Alt
+                # Jazz shell voicing — punchy 2-3 note stab with 7th color
                 root = self._last_note_played
-                shift = random.choice([-12, -24])
-                # The classic "Hendrix" / Altered dominant punch
-                chord = [root+shift, root+4+shift, root+10+shift, root+15+shift, root+17+shift]
-                self._play_queue.put((chord, 1.0, 1.8, [])) # Very loud
+                voicing = _get_jazz_voicing(root, 'shell')
+                self._play_queue.put((voicing, 0.7, 1.1, []))
                 self._last_press = time.monotonic()
                 return
             elif key_type == "enter":
-                # Big resolution chord (Massive Minor 9 or Major 9/13 inversion)
+                # Full spread jazz chord — warm resolution with bass note
                 root = self._last_note_played
-                shift = random.choice([-12, -24]) 
-                if random.random() < 0.5:
-                    chord = [root+shift, root+4+shift, root+7+shift, root+11+shift, root+14+shift, root+21+shift] # Maj 13
-                else:
-                    chord = [root+shift, root+3+shift, root+7+shift, root+10+shift, root+14+shift, root+17+shift] # Min 11
-                
-                self._play_queue.put((chord, 3.5, 2.0, [])) # Deep ringing completion
+                bass = root - 12
+                upper = _get_jazz_voicing(root, 'rootless')
+                voicing = [bass] + upper
+                self._play_queue.put((voicing, 2.8, 1.2, []))
                 self._last_press = time.monotonic()
                 return
             elif key_type == "backspace":
-                # Aggressive diminished / fully altered cluster
+                # Rootless voicing — the classic Bill Evans jazz piano sound
                 root = self._last_note_played
-                shift = random.choice([-12, -24])
-                drop = random.choice([0, 3, 6, 9]) # Diminished cycle offsets
-                r = root + shift - drop
-                
-                chord = [r, r+3, r+6, r+9, r+14] # Pure tension cascade
-                self._play_queue.put((chord, 1.5, 1.7, []))
+                voicing = _get_jazz_voicing(root, 'rootless')
+                self._play_queue.put((voicing, 1.0, 0.9, []))
                 self._last_press = time.monotonic()
                 return
             elif key_type == "space":
-                # Broad, loud jazz comping
+                # Full jazz chord — warm and rich
                 root = self._last_note_played
-                shift = random.choice([-12, 0])
-                if random.random() < 0.5:
-                    chord = [root+shift, root+7+shift, root+10+shift, root+14+shift] # Min9
-                else:
-                    chord = [root+shift, root+7+shift, root+11+shift, root+14+shift] # Maj9
-                self._play_queue.put((chord, 1.8, 1.5, []))
+                voicing = _get_jazz_voicing(root, 'full')
+                self._play_queue.put((voicing, 1.5, 1.0, []))
                 self._last_press = time.monotonic()
                 return
             return

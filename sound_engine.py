@@ -66,15 +66,40 @@ class PianoEngine:
         self._sfid = None
         import sys
         import os
-        if getattr(sys, 'frozen', False):
-            base_path = sys._MEIPASS
+        
+        # Determine if we are in py2app (RESOURCEPATH) or PyInstaller (_MEIPASS) or default dev environment
+        if 'RESOURCEPATH' in os.environ:
+            # macOS .app bundle via py2app
+            resource_path = os.environ['RESOURCEPATH']
+            framework_path = os.path.join(os.path.dirname(resource_path), 'Frameworks')
+            is_bundled = True
+        elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            # PyInstaller
+            resource_path = sys._MEIPASS
+            framework_path = sys._MEIPASS
+            is_bundled = True
         else:
-            base_path = os.path.dirname(os.path.abspath(__file__))
+            # Dev mode
+            resource_path = os.path.dirname(os.path.abspath(__file__))
+            framework_path = resource_path
+            is_bundled = False
             
-        sf2_path = os.path.join(base_path, "Piano.sf3")
+        sf2_path = os.path.join(resource_path, "Piano.sf3")
         try:
+            if is_bundled:
+                # Monkey-patch find_library to return the bundled dylib
+                import ctypes.util
+                _orig_find = ctypes.util.find_library
+                def _find_override(name):
+                    if "fluidsynth" in name:
+                        bundled = os.path.join(framework_path, "libfluidsynth.dylib")
+                        if os.path.exists(bundled):
+                            return bundled
+                    return _orig_find(name)
+                ctypes.util.find_library = _find_override
+
             import fluidsynth
-            import os
+            
             # Note: Do not load piano soundfont for typewriter mode
             if os.path.exists(sf2_path) and mode != "typewriter":
                 self._synth = fluidsynth.Synth()

@@ -3,3 +3,9 @@
 __pycache__/
 *.deb
 *.zip
+
+build/
+dist/
+*.app/
+*.spec
+*.applescript
