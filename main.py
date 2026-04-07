@@ -347,10 +347,33 @@ def main():
             song = pick_song_interactive()
 
     app = KeyboardPiano(song, mode=args.mode, pomodoro_minutes=args.pomodoro)
+    
+    import threading
+    worker_thread = threading.Thread(target=app.start, daemon=True)
+    worker_thread.start()
+
     try:
-        app.start()
-    except KeyboardInterrupt:
-        print("\n👋 再见！")
+        from AppKit import NSApplication, NSApp, NSApplicationActivationPolicyRegular, NSObject # type: ignore
+        import os
+
+        class AppDelegate(NSObject):
+            def applicationShouldTerminate_(self, sender):
+                app._stop_event.set()
+                os._exit(0)
+                return 1
+
+        nsapp = NSApplication.sharedApplication()
+        nsapp.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        delegate = AppDelegate.alloc().init()
+        nsapp.setDelegate_(delegate)
+        NSApp().run()
+    except ImportError:
+        # Fallback for non-macOS or missing PyObjC
+        try:
+            app._stop_event.wait()
+        except KeyboardInterrupt:
+            print("\n👋 再见！")
+            app._stop_event.set()
 
 if __name__ == "__main__":
     main()

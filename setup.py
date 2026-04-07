@@ -39,7 +39,6 @@ OPTIONS = {
         'CFBundleDisplayName': 'JazzKeys',
         'CFBundleIdentifier': 'com.andreas.jazzkeys',
         'CFBundleShortVersionString': '1.0.0',
-        'LSBackgroundOnly': True,
         'NSHighResolutionCapable': True,
     },
     'includes': ['fluidsynth', 'numpy', 'sounddevice', 'ctypes',
