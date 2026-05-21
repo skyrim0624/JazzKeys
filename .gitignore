@@ -1,8 +1,18 @@
+/.DS_Store
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
 *.sf2
 *.sf3
 __pycache__/
 *.deb
 *.zip
+*.dmg
 
 build/
 dist/

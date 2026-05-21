@@ -289,6 +289,11 @@ class KeyboardPiano:
 
     def _quit(self):
         self._stop_event.set()
+        try:
+            from AppKit import NSApp  # type: ignore
+            NSApp().terminate_(None)
+        except Exception:
+            pass
 
 
 def pick_song_interactive() -> dict:
@@ -348,19 +353,16 @@ def main():
 
     app = KeyboardPiano(song, mode=args.mode, pomodoro_minutes=args.pomodoro)
     
-    import threading
     worker_thread = threading.Thread(target=app.start, daemon=True)
     worker_thread.start()
 
     try:
-        from AppKit import NSApplication, NSApp, NSApplicationActivationPolicyRegular, NSObject # type: ignore
-        import os
+        from AppKit import NSApplication, NSApp, NSApplicationActivationPolicyRegular, NSObject, NSTerminateNow # type: ignore
 
         class AppDelegate(NSObject):
             def applicationShouldTerminate_(self, sender):
                 app._stop_event.set()
-                os._exit(0)
-                return 1
+                return NSTerminateNow
 
         nsapp = NSApplication.sharedApplication()
         nsapp.setActivationPolicy_(NSApplicationActivationPolicyRegular)

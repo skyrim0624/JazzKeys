@@ -7,6 +7,7 @@ import numpy as np
 import sounddevice as sd
 
 SAMPLE_RATE = 44100
+MAX_NOTE_CACHE_SIZE = 256
 
 
 def midi_to_freq(midi_note: int) -> float:
@@ -54,6 +55,8 @@ class PianoEngine:
         self._active: list[list] = []
         
         self._lock = threading.Lock()
+        self._timer_lock = threading.Lock()
+        self._note_timers: set[threading.Timer] = set()
         self._rng = np.random.default_rng()
 
         if mode == "typewriter":
@@ -124,10 +127,17 @@ class PianoEngine:
         self._stream.start()
 
     def stop(self):
+        with self._timer_lock:
+            timers = list(self._note_timers)
+            self._note_timers.clear()
+        for timer in timers:
+            timer.cancel()
+
         self._stream.stop()
         self._stream.close()
         if self._synth:
             self._synth.delete()
+            self._synth = None
 
     def play_notes(self, midi_notes: list[int], sustain: float = 1.8, volume: float = 1.0, octaves_to_add: list[int] = None):
         """Play notes with an optional volume scale and extra octaves/harmonies."""
@@ -146,13 +156,12 @@ class PianoEngine:
                     all_notes.append(note + oct_diff * 12)
 
         for note in all_notes:
-            if self._synth:
+            synth = self._synth
+            if synth:
                 # Greatly increased max velocity mapping
                 vel = int(min(127, max(30, volume * 115)))
-                self._synth.noteon(0, int(note), vel)
-                # Handle sustain manually to prevent endless rings unless Pomodoro applies max sustain
-                s_time = sustain
-                threading.Timer(s_time, lambda n=int(note): self._synth.noteoff(0, n)).start()
+                synth.noteon(0, int(note), vel)
+                self._schedule_noteoff(int(note), sustain)
             else:
                 samples = self._get_samples(note, sustain)
                 with self._lock:
@@ -178,6 +187,23 @@ class PianoEngine:
         with self._lock:
             # Special keys can bypass max_poly slightly to ensure they are heard
             self._active.append([samples, 0, volume])
+
+    def _schedule_noteoff(self, note: int, sustain: float):
+        timer = threading.Timer(sustain, self._noteoff_timer, args=(note,))
+        timer.daemon = True
+        with self._timer_lock:
+            self._note_timers.add(timer)
+        timer.start()
+
+    def _noteoff_timer(self, note: int):
+        try:
+            synth = self._synth
+            if synth:
+                synth.noteoff(0, note)
+        finally:
+            current = threading.current_thread()
+            with self._timer_lock:
+                self._note_timers.discard(current)
 
     # ── audio callback ───────────────────────────────────────────
 
@@ -219,6 +245,8 @@ class PianoEngine:
         key = (midi_note, int(sustain * 100))
         if key not in self._note_cache:
             self._note_cache[key] = self._synthesize(midi_note, sustain)
+            if len(self._note_cache) > MAX_NOTE_CACHE_SIZE:
+                self._note_cache.pop(next(iter(self._note_cache)))
         return self._note_cache[key]
 
     def _synthesize(self, midi_note: int, sustain: float) -> np.ndarray:
